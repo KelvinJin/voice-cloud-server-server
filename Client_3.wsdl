@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="Client_3"
+ targetNamespace="http://59.66.185.77:8080/Client_3.wsdl"
+ xmlns:tns="http://59.66.185.77:8080/Client_3.wsdl"
+ xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+ xmlns:ns="urn:Client_3"
+ xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
+ xmlns:MIME="http://schemas.xmlsoap.org/wsdl/mime/"
+ xmlns:DIME="http://schemas.xmlsoap.org/ws/2002/04/dime/wsdl/"
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+<types>
+
+ <schema targetNamespace="urn:Client_3"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:ns="urn:Client_3"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+  <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+  <complexType name="data"><!-- ns__data -->
+
+   <simpleContent>
+    <extension base="xsd:base64Binary">
+     <attribute name="href" type="xsd:anyURI" use="optional"/>
+    </extension>
+   </simpleContent>
+  </complexType>
+  <complexType name="soap-string"><!-- soap_string -->
+
+   <sequence>
+     <element name="size" type="xsd:int" minOccurs="1" maxOccurs="1"/><!-- soap_string::size -->
+     <element name="str" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/><!-- soap_string::str -->
+   </sequence>
+  </complexType>
+ </schema>
+
+</types>
+
+<message name="ReceiveTaskListRequest">
+ <part name="data" type="ns:data"/><!-- ns__ReceiveTaskList::data -->
+</message>
+
+<message name="ReceiveTaskListResponse">
+ <part name="rest" type="ns:soap-string"/><!-- ns__ReceiveTaskList::rest -->
+</message>
+
+<message name="TaskSolveRequest">
+ <part name="taskId" type="xsd:int"/><!-- ns__TaskSolve::taskId -->
+ <part name="task" type="ns:soap-string"/><!-- ns__TaskSolve::task -->
+</message>
+
+<message name="TaskSolveResponse">
+ <part name="ret" type="ns:soap-string"/><!-- ns__TaskSolve::ret -->
+</message>
+
+<message name="isBusyRequest">
+</message>
+
+<message name="isBusyResponse">
+ <part name="flag" type="xsd:int"/><!-- ns__isBusy::flag -->
+</message>
+
+<portType name="Client_3PortType">
+ <operation name="ReceiveTaskList">
+  <documentation>Service definition of function ns__ReceiveTaskList</documentation>
+  <input message="tns:ReceiveTaskListRequest"/>
+  <output message="tns:ReceiveTaskListResponse"/>
+ </operation>
+ <operation name="TaskSolve">
+  <documentation>Service definition of function ns__TaskSolve</documentation>
+  <input message="tns:TaskSolveRequest"/>
+  <output message="tns:TaskSolveResponse"/>
+ </operation>
+ <operation name="isBusy">
+  <documentation>Service definition of function ns__isBusy</documentation>
+  <input message="tns:isBusyRequest"/>
+  <output message="tns:isBusyResponse"/>
+ </operation>
+</portType>
+
+<binding name="Client_3" type="tns:Client_3PortType">
+ <SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+ <operation name="ReceiveTaskList">
+  <SOAP:operation style="rpc" soapAction=""/>
+  <input>
+     <SOAP:body use="encoded" namespace="urn:Client_3" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+     <SOAP:body use="encoded" namespace="urn:Client_3" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="TaskSolve">
+  <SOAP:operation style="rpc" soapAction=""/>
+  <input>
+     <SOAP:body use="encoded" namespace="urn:Client_3" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+     <SOAP:body use="encoded" namespace="urn:Client_3" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="isBusy">
+  <SOAP:operation style="rpc" soapAction=""/>
+  <input>
+     <SOAP:body use="encoded" namespace="urn:Client_3" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+     <SOAP:body use="encoded" namespace="urn:Client_3" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+</binding>
+
+<service name="Client_3">
+ <documentation>gSOAP 2.8.5 generated service definition</documentation>
+ <port name="Client_3" binding="tns:Client_3">
+  <SOAP:address location="http://59.66.185.77:8080/"/>
+ </port>
+</service>
+
+</definitions>
