@@ -13,9 +13,13 @@
 #define MAX_TIME 5
 #define max_client 10
 #define BUFFER 63
+#define MAX_BUFFER 100
 #define task_Location "/var/www/TaskList/"
 #define task_result_location "/var/www/TaskResult/"
 #define task_final_result_location "/var/www/TaskResult/FinalResult/"
+#define server_server "/home/owenwj/prog/server/"
+#define server_server_clientinfo "/home/owenwj/prog/server/Clientinfo.txt"
+#define server_webfiles_uploadify "/var/www/uploadify/"
 int cli_core_num[max_client];
 struct taskrecfunc
 {
@@ -120,7 +124,7 @@ int countClientNumber()
 	char *buf_client;
 	int temp=0;
 
-	fp_client=fopen("/home/owenwj/prog/client/Clientinfo.txt","rt+");
+	fp_client=fopen(server_server_clientinfo,"rt+");
 	if(fp_client==NULL)
 	{
 		printf("fail to open Clientinfo.txt\n");
@@ -311,7 +315,7 @@ int main()
 	//buf_taskId=(char *)malloc(BUFFER);
 	temptask=(char *)malloc(60);
 
-	key=ftok("/var/www/uploadify/",'a');
+	key=ftok(server_webfiles_uploadify,'a');
 	if(key==-1)
 	{
 		printf("ftok error!\n");
