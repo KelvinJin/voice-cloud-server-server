@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions name="Client_1"
- targetNamespace="http://59.66.185.77:8080/Client_1.wsdl"
- xmlns:tns="http://59.66.185.77:8080/Client_1.wsdl"
+ targetNamespace="http://59.66.185.75:8080/Client_1.wsdl"
+ xmlns:tns="http://59.66.185.75:8080/Client_1.wsdl"
  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -120,7 +120,7 @@
 <service name="Client_1">
  <documentation>gSOAP 2.8.5 generated service definition</documentation>
  <port name="Client_1" binding="tns:Client_1">
-  <SOAP:address location="http://59.66.185.77:8080/"/>
+  <SOAP:address location="http://59.66.185.75:8080/"/>
  </port>
 </service>
 
