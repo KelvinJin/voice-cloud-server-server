@@ -1,5 +1,5 @@
 #include "soapH.h"
-#include "Client_USCORE1.nsmap"
+#include "Client.nsmap"
 #include <stdlib.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
@@ -21,34 +21,18 @@
 #define server_server_clientinfo "/home/owenwj/prog/server/Clientinfo.txt"
 #define server_webfiles_uploadify "/var/www/uploadify/"
 int cli_core_num[max_client];
+char *cli_ip_port[max_client];
 struct taskrecfunc
 {
 	char *funname;
 	int (*funcptr)();
 }symtab[]={
-	{"soap_call_ns1__ReceiveTaskList",soap_call_ns1__ReceiveTaskList},
-	{"soap_call_ns2__ReceiveTaskList",soap_call_ns2__ReceiveTaskList},
-	{"soap_call_ns3__ReceiveTaskList",soap_call_ns3__ReceiveTaskList},
-	//{"soap_call_ns4__ReceiveTaskList",soap_call_ns4__ReceiveTaskList},
-	//{"soap_call_ns5__ReceiveTaskList",soap_call_ns5__ReceiveTaskList},
-	//{"soap_call_ns6__ReceiveTaskList",soap_call_ns6__ReceiveTaskList},
-	//{"soap_call_ns7__ReceiveTaskList",soap_call_ns7__ReceiveTaskList},
-	//{"soap_call_ns8__ReceiveTaskList",soap_call_ns8__ReceiveTaskList},
-	//{"soap_call_ns9__ReceiveTaskList",soap_call_ns9__ReceiveTaskList},
-	//{"soap_call_ns10__ReceiveTaskList",soap_call_ns10__ReceiveTaskList},
-	{"soap_call_ns1__TaskSolve",soap_call_ns1__TaskSolve},
-	{"soap_call_ns2__TaskSolve",soap_call_ns2__TaskSolve},
-	{"soap_call_ns3__TaskSolve",soap_call_ns3__TaskSolve},
-	//{"soap_call_ns4__TaskSolve",soap_call_ns4__TaskSolve},
-	//{"soap_call_ns5__TaskSolve",soap_call_ns5__TaskSolve},
-	//{"soap_call_ns6__TaskSolve",soap_call_ns6__TaskSolve},
-	//{"soap_call_ns7__TaskSolve",soap_call_ns7__TaskSolve},
-	//{"soap_call_ns8__TaskSolve",soap_call_ns8__TaskSolve},
-	//{"soap_call_ns9__TaskSolve",soap_call_ns9__TaskSolve},
-	//{"soap_call_ns10__TaskSolve",soap_call_ns10__TaskSolve},
-	//{"soap_call_ns1__isBusy",soap_call_ns1__isBusy},
-	//{"soap_call_ns2__isBusy",soap_call_ns2__isBusy},
-	//{"soap_call_ns3__isBusy",soap_call_ns3__isBusy},
+	{"soap_call_ns__ReceiveTaskList",soap_call_ns2__ReceiveTaskList},
+	//{"soap_call_ns2__ReceiveTaskList",soap_call_ns2__ReceiveTaskList},
+	//{"soap_call_ns3__ReceiveTaskList",soap_call_ns3__ReceiveTaskList},
+	{"soap_call_ns__TaskSolve",soap_call_ns2__TaskSolve},
+	//{"soap_call_ns2__TaskSolve",soap_call_ns2__TaskSolve},
+	//{"soap_call_ns3__TaskSolve",soap_call_ns3__TaskSolve},
 };
 /*struct retLocation
 {
@@ -123,7 +107,6 @@ int countClientNumber()
 	FILE *fp_client;
 	char *buf_client;
 	int temp=0;
-
 	fp_client=fopen(server_server_clientinfo,"rt+");
 	if(fp_client==NULL)
 	{
@@ -133,16 +116,24 @@ int countClientNumber()
 	buf_client=(char *)malloc(BUFFER);
 	while(!feof(fp_client))
 	{
+		cli_ip_port[temp]=(char *)malloc(BUFFER);
+		bzero(cli_ip_port[temp],BUFFER);
 		bzero(buf_client,BUFFER);
 		fgets(buf_client,BUFFER,fp_client);
 		if(strlen(buf_client)==1)
 		{
 			break;
 		}
-		printf("client %d's IP : %s",temp,buf_client);
+		buf_client[strlen(buf_client)-1]='\0';
+		strcat(cli_ip_port[temp],"http://");
+		strcat(cli_ip_port[temp],buf_client);
+		strcat(cli_ip_port[temp],":");
 		bzero(buf_client,BUFFER);
 		fgets(buf_client,BUFFER,fp_client);
-		printf("client %d's PORT : %s",temp,buf_client);
+		buf_client[strlen(buf_client)-1]='\0';
+		strcat(cli_ip_port[temp],buf_client);
+		strcat(cli_ip_port[temp],"/");
+		printf("client %d's IP:PORT : %s\n",temp+1,cli_ip_port[temp]);
 		bzero(buf_client,BUFFER);
 		fgets(buf_client,BUFFER,fp_client);
 		printf("client %d's CORENUM : %s",temp,buf_client);
@@ -270,15 +261,16 @@ int main()
 	char *buf_result;
 	char buf_taskId;
 	char buf_temp[BUFFER];
+	
 	char *buf_client;
 	char *temptask;
 	char *shared_memory;
 	char *tempname;
 
 	struct msgtype msg;
-	struct ns1__data tasklist;
-	struct ns1__TaskSolveResponse tasksolveresponse;
-	struct ns1__ReceiveTaskListResponse receivetasklistresponse;
+	struct ns2__data tasklist;
+	struct ns2__TaskSolveResponse tasksolveresponse;
+	struct ns2__ReceiveTaskListResponse receivetasklistresponse;
 	struct shmid_ds shmbuffer;
 	struct soap soap;
 	struct stat sb;
@@ -518,12 +510,12 @@ int main()
 				char *filename;
 				FILE *fp_result;
 				FILE *fp_fail;
-				struct ns1__soap_string taskline;
+				struct ns2__soap_string taskline;
 				taskline.str=(char *)malloc(1024);
 				filename=(char *)malloc(100);
 
-				state=symtab[i].funcptr(&soap,NULL,NULL,&tasklist,&receivetasklistresponse);//向当前客户端传送任务文件
-				//state=symtab[i+1].funcptr(&soap,NULL,NULL,&tasklist,&receivetasklistresponse);
+				//state=symtab[i].funcptr(&soap,NULL,NULL,&tasklist,&receivetasklistresponse);//向当前客户端传送任务文件
+				state=symtab[0].funcptr(&soap,cli_ip_port[i],NULL,&tasklist,&receivetasklistresponse);
 				if(state==SOAP_OK)
 				{
 					printf("task sent to client %d successful!\n",i);
@@ -592,7 +584,8 @@ int main()
 					}
 
 					taskline.size=strlen(taskline.str);
-					result=symtab[cur_client+i].funcptr(&soap,NULL,NULL,taskId,&taskline,&tasksolveresponse);//传给当前客户端需要执行的任务行
+					//result=symtab[cur_client+i].funcptr(&soap,NULL,NULL,taskId,&taskline,&tasksolveresponse);//传给当前客户端需要执行的任务行
+					result=symtab[1].funcptr(&soap,cli_ip_port[i],NULL,taskId,&taskline,&tasksolveresponse);
 					printf("result:%s\n",tasksolveresponse.ret->str);
 					if(result==SOAP_OK)
 					{
