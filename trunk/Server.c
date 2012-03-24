@@ -10,7 +10,7 @@
 #include <sys/msg.h>
 #include <signal.h> 
 #include <string.h>
-#define MAX_TIME 5
+#define MAX_TIME 10
 #define max_client 10
 #define BUFFER 63
 #define MAX_BUFFER 100
@@ -313,7 +313,7 @@ int main()
 	buf_result=(char *)malloc(BUFFER+1);
 	tempname=(char *)malloc(1000);
 	//buf_taskId=(char *)malloc(BUFFER);
-	temptask=(char *)malloc(60);
+	temptask=(char *)malloc(200);
 
 	key=ftok(server_webfiles_uploadify,'a');
 	if(key==-1)
@@ -425,11 +425,15 @@ int main()
 			fclose(fp_task);
 			exit(1);
 		}
-		tot_line=-1;
+		tot_line=0;
 		while(!feof(fp_task))//读取任务行数
 		{
-			bzero(temptask,60);
-			fgets(temptask,60,fp_task);//任务文件每一行最多60个字符
+			bzero(temptask,200);
+			fgets(temptask,200,fp_task);//任务文件每一行最多60个字符
+			if(strlen(temptask)<2)
+			{
+				break;//there is something
+			}			
 			tot_line++;
 		}
 		printf("tot_line: %d\n",tot_line);
@@ -566,6 +570,7 @@ int main()
 				{
 					bzero(taskline.str,1024);				
 					cur_line=atoi(shared_memory);
+					//printf("%d %d\n",cur_line,tot_line);
 					if(cur_line>tot_line)break;
 					start=cur_line;
 					cur_line+=cli_core_num[i];
