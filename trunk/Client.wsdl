@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions name="Client"
- targetNamespace="http://59.66.185.77:8080/Client.wsdl"
- xmlns:tns="http://59.66.185.77:8080/Client.wsdl"
+ targetNamespace="http://localhost:8080/Client.wsdl"
+ xmlns:tns="http://localhost:8080/Client.wsdl"
  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -61,11 +61,21 @@
  <part name="ret" type="ns:soap-string"/><!-- ns__TaskSolve::ret -->
 </message>
 
-<message name="isBusyRequest">
+<message name="IsBusyRequest">
 </message>
 
-<message name="isBusyResponse">
- <part name="flag" type="xsd:int"/><!-- ns__isBusy::flag -->
+<message name="IsBusyResponse">
+ <part name="flag" type="xsd:int"/><!-- ns__IsBusy::flag -->
+</message>
+
+<message name="BuildShareFolderRequest">
+ <part name="sharepath" type="ns:soap-string"/><!-- ns__BuildShareFolder::sharepath -->
+ <part name="username" type="ns:soap-string"/><!-- ns__BuildShareFolder::username -->
+ <part name="passwd" type="ns:soap-string"/><!-- ns__BuildShareFolder::passwd -->
+</message>
+
+<message name="BuildShareFolderResponse">
+ <part name="ret" type="ns:soap-string"/><!-- ns__BuildShareFolder::ret -->
 </message>
 
 <portType name="ClientPortType">
@@ -79,10 +89,15 @@
   <input message="tns:TaskSolveRequest"/>
   <output message="tns:TaskSolveResponse"/>
  </operation>
- <operation name="isBusy">
-  <documentation>Service definition of function ns__isBusy</documentation>
-  <input message="tns:isBusyRequest"/>
-  <output message="tns:isBusyResponse"/>
+ <operation name="IsBusy">
+  <documentation>Service definition of function ns__IsBusy</documentation>
+  <input message="tns:IsBusyRequest"/>
+  <output message="tns:IsBusyResponse"/>
+ </operation>
+ <operation name="BuildShareFolder">
+  <documentation>Service definition of function ns__BuildShareFolder</documentation>
+  <input message="tns:BuildShareFolderRequest"/>
+  <output message="tns:BuildShareFolderResponse"/>
  </operation>
 </portType>
 
@@ -106,7 +121,16 @@
      <SOAP:body use="encoded" namespace="urn:Client" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
- <operation name="isBusy">
+ <operation name="IsBusy">
+  <SOAP:operation style="rpc" soapAction=""/>
+  <input>
+     <SOAP:body use="encoded" namespace="urn:Client" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+     <SOAP:body use="encoded" namespace="urn:Client" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="BuildShareFolder">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
      <SOAP:body use="encoded" namespace="urn:Client" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
@@ -120,7 +144,7 @@
 <service name="Client">
  <documentation>gSOAP 2.8.5 generated service definition</documentation>
  <port name="Client" binding="tns:Client">
-  <SOAP:address location="http://59.66.185.77:8080/"/>
+  <SOAP:address location="http://localhost:8080/"/>
  </port>
 </service>
 

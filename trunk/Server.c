@@ -8,40 +8,15 @@
 #include <sys/wait.h>
 #include <sys/sem.h>
 #include <sys/msg.h>
-#include <signal.h> 
+#include <signal.h>
 #include <string.h>
-#define MAX_TIME 10
-#define max_client 10
-#define BUFFER 63
-#define MAX_BUFFER 100
-#define task_Location "/var/www/TaskList/"
-#define task_result_location "/var/www/TaskResult/"
-#define task_final_result_location "/var/www/TaskResult/FinalResult/"
-#define server_server "/home/owenwj/prog/server/"
-#define server_server_clientinfo "/home/owenwj/prog/server/Clientinfo.txt"
-#define server_webfiles_uploadify "/var/www/uploadify/"
+#include "stddefine.h"
 int cli_core_num[max_client];
 char *cli_ip_port[max_client];
-struct taskrecfunc
-{
-	char *funname;
-	int (*funcptr)();
-}symtab[]={
-	{"soap_call_ns__ReceiveTaskList",soap_call_ns2__ReceiveTaskList},
-	//{"soap_call_ns2__ReceiveTaskList",soap_call_ns2__ReceiveTaskList},
-	//{"soap_call_ns3__ReceiveTaskList",soap_call_ns3__ReceiveTaskList},
-	{"soap_call_ns__TaskSolve",soap_call_ns2__TaskSolve},
-	//{"soap_call_ns2__TaskSolve",soap_call_ns2__TaskSolve},
-	//{"soap_call_ns3__TaskSolve",soap_call_ns3__TaskSolve},
+struct taskrecfunc symtab[] = {
+	{"soap_call_ns__ReceiveTaskList", soap_call_ns2__ReceiveTaskList},
+	{"soap_call_ns__TaskSolve", soap_call_ns2__TaskSolve},
 };
-/*struct retLocation
-{
-	char *retlocation;	
-}*/
-struct msgtype {
-    long mtype;
-    char buffer[BUFFER+1];
-}; 
 union senum
 {
 	int val;
@@ -52,100 +27,101 @@ union senum
 /*创建信号量 */
 int sem_creat(key_t  key)
 {
-    union senum sem;
-    int         semid;
-    sem.val=0;
-    semid=semget(key, 1, IPC_CREAT|0666);
+	union senum sem;
+	int         semid;
+	sem.val = 0;
+	semid = semget(key, 1, IPC_CREAT | 0666);
 
-    if(semid==-1)
-    {
-        printf("Create semaphore error\n");
-        exit(-1);
-    }
+	if(semid == -1)
+	{
+		printf("Create semaphore error\n");
+		exit(-1);
+	}
 
-    semctl(semid, 0, SETVAL, sem);
+	semctl(semid, 0, SETVAL, sem);
 
-    return semid;
+	return semid;
 }
 
 /* 删除信号量*/
 int del_sem(int semid)
 {
-    union senum  sem;
-    sem.val = 0;
-    semctl(semid, 0, IPC_RMID, sem);
+	union senum  sem;
+	sem.val = 0;
+	semctl(semid, 0, IPC_RMID, sem);
 }
 
 /*信号量的P操作，使得信号量的值加1*/
 int p(int semid)
 {
-   struct sembuf sops = {0,+1,SEM_UNDO};
-    return (semop(semid, &sops, 1));
+	struct sembuf sops = {0, +1, SEM_UNDO};
+	return (semop(semid, &sops, 1));
 }
 
 /*信号量的v操作,使得信号量的值减1*/
 int v(int semid)
 {
-    struct sembuf sops = {0,-1,SEM_UNDO};
-    return (semop(semid, &sops, 1));
+	struct sembuf sops = {0, -1, SEM_UNDO};
+	return (semop(semid, &sops, 1));
 }
 void *dime_read_open(struct soap *soap, void *handle, const char *id, const char *type, const char *options)
-{ 
+{
 	return handle;
 }
 void dime_read_close(struct soap *soap, void *handle)
-{ 
+{
 	fclose((FILE*)handle);
 }
 size_t dime_read(struct soap *soap, void *handle, char *buf, size_t len)
-{ 
+{
 	return fread(buf, 1, len, (FILE*)handle);
-} 
+}
 //打印可用客户端
-int countClientNumber()
-{	
+int countClientNumber(char *clientinfo)
+{
+
 	FILE *fp_client;
 	char *buf_client;
-	int temp=0;
-	fp_client=fopen(server_server_clientinfo,"rt+");
-	if(fp_client==NULL)
+	int temp = 0;
+	fp_client = fopen(clientinfo, "r+");
+
+	if(fp_client == NULL)
 	{
 		printf("fail to open Clientinfo.txt\n");
 		exit(1);
 	}
-	buf_client=(char *)malloc(BUFFER);
+
+	buf_client = (char *)malloc(BUFFER);
+
 	while(!feof(fp_client))
 	{
-		cli_ip_port[temp]=(char *)malloc(BUFFER);
-		bzero(cli_ip_port[temp],BUFFER);
-		bzero(buf_client,BUFFER);
-		fgets(buf_client,BUFFER,fp_client);
-		if(strlen(buf_client)==1)
+		cli_ip_port[temp] = (char *)malloc(BUFFER);
+		bzero(cli_ip_port[temp], BUFFER);
+		bzero(buf_client, BUFFER);
+		fgets(buf_client, BUFFER, fp_client);
+
+		if(strlen(buf_client) == 1)
 		{
 			break;
 		}
-		buf_client[strlen(buf_client)-1]='\0';
-		strcat(cli_ip_port[temp],"http://");
-		strcat(cli_ip_port[temp],buf_client);
-		strcat(cli_ip_port[temp],":");
-		bzero(buf_client,BUFFER);
-		fgets(buf_client,BUFFER,fp_client);
-		buf_client[strlen(buf_client)-1]='\0';
-		strcat(cli_ip_port[temp],buf_client);
-		strcat(cli_ip_port[temp],"/");
-		printf("client %d's IP:PORT : %s\n",temp+1,cli_ip_port[temp]);
-		bzero(buf_client,BUFFER);
-		fgets(buf_client,BUFFER,fp_client);
-		printf("client %d's CORENUM : %s",temp,buf_client);
-		cli_core_num[temp]=atoi(buf_client);
+
+		buf_client[strlen(buf_client)-1] = '\0';
+		strcat(cli_ip_port[temp], buf_client);
+		bzero(buf_client, BUFFER);
+		fgets(buf_client, BUFFER, fp_client);
+		buf_client[strlen(buf_client)-1] = '\0';
+		cli_core_num[temp] = atoi(buf_client);
+		printf("client %d's IP:PORT : %s\n", temp + 1, cli_ip_port[temp]);
+		printf("client %d's CORENUM : %s\n", temp + 1, buf_client);
 		temp++;
 	}
+
 	fclose(fp_client);
 	return temp;
 }
-
-void resultDeal(char *filename,int status[])
-{	
+//结果处理
+void resultDeal(char *filename, int status[])
+{
 	struct msgtype msg;
 	FILE *fp_result_in;
 	FILE *fp_result_out;
@@ -156,84 +132,98 @@ void resultDeal(char *filename,int status[])
 	int i;
 	key_t key;
 	int msgid;
-	msg.mtype=2;
-	strcpy(msg.buffer,filename);
-	tempname=(char *)malloc(BUFFER+1);
-	append=(char *)malloc(BUFFER+1);
-	temp=(char *)malloc(1000);
-	bzero(tempname,BUFFER+1);
-	strcat(tempname,task_final_result_location);
-	strcat(tempname,filename);
-	strcat(tempname,"_result.txt");
-	if((fp_result_out=fopen(tempname,"wt+"))==NULL)
+	msg.mtype = 2;
+	strcpy(msg.buffer, filename);
+	tempname = (char *)malloc(BUFFER + 1);
+	append = (char *)malloc(BUFFER + 1);
+	temp = (char *)malloc(1000);
+	bzero(tempname, BUFFER + 1);
+	strcat(tempname, task_final_result_location);
+	strcat(tempname, filename);
+	strcat(tempname, "_result.txt");
+
+	if((fp_result_out = fopen(tempname, "wt+")) == NULL)
 	{
-		printf("result file of %s cannot creat!\n",filename);
+		printf("result file of %s cannot creat!\n", filename);
 	}
-	bzero(tempname,BUFFER+1);
-	strcat(tempname,task_final_result_location);
-	strcat(tempname,filename);
-	strcat(tempname,"_result_fail.txt");
-	if((fp_result_out_fail=fopen(tempname,"wt+"))==NULL)
+
+	bzero(tempname, BUFFER + 1);
+	strcat(tempname, task_final_result_location);
+	strcat(tempname, filename);
+	strcat(tempname, "_result_fail.txt");
+
+	if((fp_result_out_fail = fopen(tempname, "wt+")) == NULL)
 	{
-		printf("result fail file of %s cannot creat!\n",filename);
+		printf("result fail file of %s cannot creat!\n", filename);
 	}
-	for(i=0;i<max_client;i++)
+
+	for(i = 0; i < max_client; i++)
 	{
-		if(status[i]==0)
+		if(status[i] == 0)
 		{
-			bzero(tempname,BUFFER+1);
-			bzero(append,BUFFER+1);
-			strcat(tempname,task_result_location);
-			strcat(tempname,filename);
-			sprintf(append,"_client%d_result.txt",i);
-			strcat(tempname,append);
-			if((fp_result_in=fopen(tempname,"rt+"))==NULL)
+			bzero(tempname, BUFFER + 1);
+			bzero(append, BUFFER + 1);
+			strcat(tempname, task_result_location);
+			strcat(tempname, filename);
+			sprintf(append, "_client%d_result.txt", i);
+			strcat(tempname, append);
+
+			if((fp_result_in = fopen(tempname, "rt+")) == NULL)
 			{
-				printf("result file of client %d not find!\n",i);
+				printf("result file of client %d not find!\n", i);
 			}
+
 			while(!feof(fp_result_in))
 			{
-			 	bzero(temp,1000);
-				fgets(temp,1000,fp_result_in);
-				fputs(temp,fp_result_out);
+				bzero(temp, 1000);
+				fgets(temp, 1000, fp_result_in);
+				fputs(temp, fp_result_out);
 			}
+
 			fclose(fp_result_in);
-			bzero(tempname,BUFFER+1);
-			bzero(append,BUFFER+1);
-			strcat(tempname,task_result_location);
-			strcat(tempname,filename);
-			sprintf(append,"_client%d_result_fail.txt",i);
-			strcat(tempname,append);
-			if((fp_result_in=fopen(tempname,"rt+"))==NULL)
+			bzero(tempname, BUFFER + 1);
+			bzero(append, BUFFER + 1);
+			strcat(tempname, task_result_location);
+			strcat(tempname, filename);
+			sprintf(append, "_client%d_result_fail.txt", i);
+			strcat(tempname, append);
+
+			if((fp_result_in = fopen(tempname, "rt+")) == NULL)
 			{
-				printf("result fail file of client %d not find!\n",i);
+				printf("result fail file of client %d not find!\n", i);
 			}
+
 			while(!feof(fp_result_in))
 			{
-			 	bzero(temp,1000);
-				fgets(temp,1000,fp_result_in);
-				fputs(temp,fp_result_out_fail);
+				bzero(temp, 1000);
+				fgets(temp, 1000, fp_result_in);
+				fputs(temp, fp_result_out_fail);
 			}
+
 			fclose(fp_result_in);
-		}	
+		}
 	}
+
 	fclose(fp_result_out);
 	fclose(fp_result_out_fail);
-	bzero(tempname,BUFFER+1);
-	strcat(tempname,task_Location);
-	strcat(tempname,filename);
-	strcat(tempname,".txt");
-	printf("tasklist:%s\n",tempname);
-	key=ftok(tempname,'a');
-	if((msgid=msgget(key, 0777|IPC_CREAT))==-1)
-    	{
-        	printf("Creat Message Error of%s:\n",filename);
-        	exit(1);
-    	} 
-	msgsnd(msgid,&msg,sizeof(struct msgtype),0);
+	bzero(tempname, BUFFER + 1);
+	strcat(tempname, task_Location);
+	strcat(tempname, filename);
+	strcat(tempname, ".txt");
+	printf("tasklist:%s\n", tempname);
+	key = ftok(tempname, 'a');
+
+	if((msgid = msgget(key, 0777 | IPC_CREAT)) == -1)
+	{
+		printf("Creat Message Error of%s:\n", filename);
+		exit(1);
+	}
+
+	msgsnd(msgid, &msg, sizeof(struct msgtype), 0);
+	//php will close the massage que.
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	key_t key;
 	int i;
@@ -248,20 +238,20 @@ int main()
 	int segment_id;
 	int taskId;
 	int temppid;
-	int cur_client;
+	int cur_client = 0;
 	int status[max_client];//子进程是否正常退出
-	int dead_client=0;
+	int dead_client = 0;
 
 	//FILE *fp_user;
 	FILE *fp_task;
 	FILE *fp_msgid;
-	//FILE *fp_result;	
+	//FILE *fp_result;
 
 	char *buf_user;
 	char *buf_result;
 	char buf_taskId;
 	char buf_temp[BUFFER];
-	
+
 	char *buf_client;
 	char *temptask;
 	char *shared_memory;
@@ -277,13 +267,8 @@ int main()
 	struct soap_multipart *attachment;
 	//struct retLocation retLoc[max_client]
 
-	cur_client=countClientNumber();
-	printf("current available client: %d\n",cur_client);
-	for (i=0;i<cur_client;i++)
-	{
-		flag[i]=1;
-		//retLoc[i].retlocation=(char *)malloc(BUFFER+1);
-	}
+	//cur_client = countClientNumber();
+
 	//fp_user=fopen("/home/owenwj/prog/client/Userinfo.txt","rt+");
 	/*if(fp_user==NULL)
 	{
@@ -293,104 +278,120 @@ int main()
 
 	soap_init(&soap);
 	soap.fdimereadopen = dime_read_open;
-    soap.fdimereadclose = dime_read_close;
-    soap.fdimeread = dime_read; 
-	soap.connect_timeout=MAX_TIME;
-	soap.send_timeout=MAX_TIME;
-	soap.recv_timeout=MAX_TIME;
+	soap.fdimereadclose = dime_read_close;
+	soap.fdimeread = dime_read;
+	soap.connect_timeout = MAX_TIME;
+	soap.send_timeout = MAX_TIME;
+	soap.recv_timeout = MAX_TIME;
 
-	shared_memory=(char *)malloc(4);
-	bzero(shared_memory,4);
-	buf_user=(char *)malloc(BUFFER+1);
-	buf_result=(char *)malloc(BUFFER+1);
-	tempname=(char *)malloc(1000);
+	shared_memory = (char *)malloc(4);
+	bzero(shared_memory, 4);
+	buf_user = (char *)malloc(BUFFER + 1);
+	buf_result = (char *)malloc(BUFFER + 1);
+	tempname = (char *)malloc(1000);
 	//buf_taskId=(char *)malloc(BUFFER);
-	temptask=(char *)malloc(200);
+	temptask = (char *)malloc(200);
 
-	key=ftok(server_webfiles_uploadify,'a');
-	if(key==-1)
+	key = ftok(server_webfiles_uploadify, 'a');
+
+	if(key == -1)
 	{
 		printf("ftok error!\n");
 		exit(1);
 	}
+
 	//共享内存创建
-	segment_id=shmget(key,getpagesize(),IPC_CREAT|IPC_EXCL|S_IRUSR|S_IWUSR|S_IROTH|S_IWOTH);
-	if(segment_id==-1)
+	segment_id = shmget(key, getpagesize(), IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IROTH | S_IWOTH);
+
+	if(segment_id == -1)
 	{
 		printf("create shared memory error!\n");
 		exit(1);
 	}
+
 	//消息队列创建
-	if((msgid=msgget(key, 0777|IPC_CREAT))==-1)
-    	{
-        	printf("Creat Message Error:\n");
-        	exit(1);
-    	} 
+	if((msgid = msgget(key, 0777 | IPC_CREAT)) == -1)
+	{
+		printf("Creat Message Error:\n");
+		exit(1);
+	}
+
 	//msgid写进文本
-	printf("msgid:%d\n",msgid);
+	printf("msgid:%d\n", msgid);
+
 	while(1)
 	{
-		memset(&msg,0,sizeof(struct msgtype)); 
-		msgrcv(msgid,&msg,sizeof(struct msgtype),1,0);
-		memset(&tasklist,0,sizeof(tasklist));
-		for(i=0;i<max_client;i++)
+		memset(&msg, 0, sizeof(struct msgtype));
+		msgrcv(msgid, &msg, sizeof(struct msgtype), 1, 0);
+		memset(&tasklist, 0, sizeof(tasklist));
+
+		for(i = 0; i < max_client; i++)
 		{
-			status[i]=-1;
+			status[i] = -1;
 		}
-		bzero(buf_user,BUFFER+1);
-		bzero(buf_result,BUFFER+1);
+
+		bzero(buf_user, BUFFER + 1);
+		bzero(buf_result, BUFFER + 1);
 		//fgets(buf_user,BUFFER,fp_user);
 		//fgets(buf_taskId,10,fp_user);
 
-		for(i=0,j=0;i<strlen(msg.buffer);i++)
+		for(i = 0, j = 0; i < strlen(msg.buffer); i++)
 		{
-			if(msg.buffer[i]=='\"')
+			if(msg.buffer[i] == '\"')
 			{
 				i++;
-				while(msg.buffer[i]!='\"')
+
+				while(msg.buffer[i] != '\"')
 				{
-					buf_temp[j]=msg.buffer[i];
+					buf_temp[j] = msg.buffer[i];
 					j++;
 					i++;
 				}
-				buf_temp[j]='\0';
+
+				buf_temp[j] = '\0';
 				break;
-			}	
+			}
 		}
-		if(strcmp(buf_temp,"QUIT")==0)
+
+		if(strcmp(buf_temp, "QUIT") == 0)
 		{
 			break;
 		}
-		strcpy(buf_user,buf_temp);
-		buf_taskId=buf_temp[j-1];
-		taskId=-1;
-		cur_line=1;//初始化当前任务行
+
+		strcpy(buf_user, buf_temp);
+		buf_taskId = buf_temp[j-1];
+		taskId = -1;
+		cur_line = 1; //初始化当前任务行
 		//buf_user[strlen(buf_user)-1]='\0';
-		printf("%s\n",buf_user);
-		strcpy(buf_result,buf_temp);
-		strcat(buf_result,"_result.txt");
-		taskId=buf_taskId-48;
-		if(taskId==-1)
+		printf("%s\n", buf_user);
+		strcpy(buf_result, buf_temp);
+		strcat(buf_result, "_result.txt");
+		taskId = buf_taskId - 48;
+
+		if(taskId == -1)
 		{
 			printf("fail to read taskId!\n");
-			shmctl(segment_id,IPC_RMID,NULL);
-			msgctl(msgid,IPC_RMID,(struct msqid_ds*)0);
+			shmctl(segment_id, IPC_RMID, NULL);
+			msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
 			//fclose(fp_user);
 			exit(1);
 		}
-		bzero(tempname,1000);
-		strcat(tempname,task_Location);
-		strcat(tempname,buf_user);
-		strcat(tempname,".txt");
-		printf("tempname:%s\n",tempname);
-		if((fp_task=fopen(tempname,"rt+"))==NULL)
+
+		bzero(tempname, 1000);
+		strcat(tempname, task_Location);
+		strcat(tempname, buf_user);
+		strcat(tempname, ".txt");
+		printf("tempname:%s\n", tempname);
+
+		if((fp_task = fopen(tempname, "rt+")) == NULL)
 		{
 			printf("fail to open task file!\n");
-			shmctl(segment_id,IPC_RMID,NULL);
-			msgctl(msgid,IPC_RMID,(struct msqid_ds*)0);
+			shmctl(segment_id, IPC_RMID, NULL);
+			msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
 			//fclose(fp_user);
 			exit(1);
 		}
+
 		/*if((fp_result=fopen(buf_result,"wa+"))==NULL)
 		{
 			printf("fail to open result file!\n");
@@ -399,70 +400,96 @@ int main()
 			fclose(fp_task);
 			exit(1);
 		}*/
-		if(!fstat(fileno(fp_task),&sb)&&sb.st_size>0)
+		if(!fstat(fileno(fp_task), &sb) && sb.st_size > 0)
 		{
 			//printf("get task size: %d\n",sb.st_size);
-			tasklist.__item.__ptr=(unsigned char *)fp_task;
-			tasklist.__item.__size=sb.st_size;
-			tasklist.__item.id=NULL;
-			tasklist.__item.type="text/plain";
+			tasklist.__item.__ptr = (unsigned char *)fp_task;
+			tasklist.__item.__size = sb.st_size;
+			tasklist.__item.id = NULL;
+			tasklist.__item.type = "text/plain";
 			//tasklist.__item.options=soap_dime_option(&soap,0,"tasklist");
 		}
 		else
 		{
 			printf("fstat error!\n");
-			shmctl(segment_id,IPC_RMID,NULL);
-			msgctl(msgid,IPC_RMID,(struct msqid_ds*)0);
+			shmctl(segment_id, IPC_RMID, NULL);
+			msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
 			//fclose(fp_user);
 			fclose(fp_task);
 			exit(1);
 		}
-		tot_line=0;
+
+		tot_line = 0;
+
 		while(!feof(fp_task))//读取任务行数
 		{
-			bzero(temptask,200);
-			fgets(temptask,200,fp_task);//任务文件每一行最多60个字符
-			if(strlen(temptask)<2)
+			bzero(temptask, 200);
+			fgets(temptask, 200, fp_task); //任务文件每一行最多60个字符
+
+			if(strlen(temptask) < 2)
 			{
 				break;//there is something
-			}			
+			}
+
 			tot_line++;
 		}
-		printf("tot_line: %d\n",tot_line);
+
+		printf("tot_line: %d\n", tot_line);
 		rewind(fp_task);//重置任务文件指针
 
-		shared_memory=(char *)shmat(segment_id,NULL,0);
+		shared_memory = (char *)shmat(segment_id, NULL, 0);
+
 		if(!shared_memory)
 		{
 			printf("shmat error in father!\n");
-			shmctl(segment_id,IPC_RMID,NULL);
-			msgctl(msgid,IPC_RMID,(struct msqid_ds*)0);
+			shmctl(segment_id, IPC_RMID, NULL);
+			msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
 			exit(1);
 		}
-		semid=sem_creat(key);//使用共享内存
+
+		semid = sem_creat(key); //使用共享内存
 		p(semid);//增加信号量，锁定共享内存
-		shmctl(segment_id,IPC_STAT,&shmbuffer);
-		segment_size=shmbuffer.shm_segsz;
-		sprintf(shared_memory,"%d",cur_line);//向共享内存写入当前任务行,1,初始化
+		shmctl(segment_id, IPC_STAT, &shmbuffer);
+		segment_size = shmbuffer.shm_segsz;
+		sprintf(shared_memory, "%d", cur_line); //向共享内存写入当前任务行,1,初始化
 		//printf("%s\n",shared_memory);
 		v(semid);//减少信号量，解锁共享内存
 		shmdt(shared_memory);//释放共享内存
+        while (1)
+        {
+            cur_client = countClientNumber(server_webfiles_avaclientinfo);
+            if (cur_client == 0)
+            {
+                sleep(10);
+                continue;
+            }
+            printf("current available client: %d\n", cur_client);
 
+            for (i = 0; i < cur_client; i++)
+            {
+                flag[i] = 1;
+            //retLoc[i].retlocation=(char *)malloc(BUFFER+1);
+            }
+            break;
+        }
 
-		for(i=0;i<cur_client;i++)
+		for(i = 0; i < cur_client; i++)
 		{
-			bzero(tempname,1000);
-			strcat(tempname,task_Location);
-			strcat(tempname,buf_user);
-			strcat(tempname,".txt");
-			if((fp_task=fopen(tempname,"rt+"))==NULL)//打开任务文件
+
+			bzero(tempname, 1000);
+			strcat(tempname, task_Location);
+			strcat(tempname, buf_user);
+			strcat(tempname, ".txt");
+
+			if((fp_task = fopen(tempname, "rt+")) == NULL) //打开任务文件
 			{
 				printf("fail to open task file!\n");
-				shmctl(segment_id,IPC_RMID,NULL);
-				msgctl(msgid,IPC_RMID,(struct msqid_ds*)0);
+				shmctl(segment_id, IPC_RMID, NULL);
+				msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
 				//fclose(fp_user);
 				exit(1);
 			}
+
 			/*if((fp_result=fopen(buf_result,"wa+"))==NULL)
 			{
 				printf("fail to open result file!\n");
@@ -471,139 +498,152 @@ int main()
 				fclose(fp_task);
 				exit(1);
 			}*/
-			if(!fstat(fileno(fp_task),&sb)&&sb.st_size>0)//初始化dime设置
+			if(!fstat(fileno(fp_task), &sb) && sb.st_size > 0) //初始化dime设置
 			{
 				//printf("get task size: %d\n",sb.st_size);
-				tasklist.__item.__ptr=(unsigned char *)fp_task;
-				tasklist.__item.__size=sb.st_size;
-				tasklist.__item.id=NULL;
-				tasklist.__item.type="text/plain";
+				tasklist.__item.__ptr = (unsigned char *)fp_task;
+				tasklist.__item.__size = sb.st_size;
+				tasklist.__item.id = NULL;
+				tasklist.__item.type = "text/plain";
 				//tasklist.__item.options=soap_dime_option(&soap,0,"tasklist");
 			}
-			pid[i]=fork();
-			if(pid[i]<0)
+
+			pid[i] = fork();
+
+			if(pid[i] < 0)
 			{
 				printf("error in fork!\n");
 				//fclose(fp_user);
 				//fclose(fp_result);
 				exit(1);
 			}
-			else if(pid[i]==0)
-			{	
+			else if(pid[i] == 0)
+			{
 				//解决buf_user的问题可以使得这一块代码全部移到外面
-				bzero(tempname,1000);				
-				strcat(tempname,task_Location);
-				strcat(tempname,buf_user);
-				strcat(tempname,".txt");
-				if((fp_task=fopen(tempname,"rt+"))==NULL)//子进程中重新打开一次任务文件，似乎没有必要
+				bzero(tempname, 1000);
+				strcat(tempname, task_Location);
+				strcat(tempname, buf_user);
+				strcat(tempname, ".txt");
+
+				if((fp_task = fopen(tempname, "rt+")) == NULL) //子进程中重新打开一次任务文件，似乎没有必要
 				{
-				printf("fail to open task file!\n");
-				shmctl(segment_id,IPC_RMID,NULL);
-				//fclose(fp_user);
-				exit(1);
+					printf("fail to open task file!\n");
+					shmctl(segment_id, IPC_RMID, NULL);
+					//fclose(fp_user);
+					exit(1);
 				}
-				int state=1;
+
+				int state = 1;
 				int start;
 				int end;
 				int result;
-				int failNum=0;
+				int failNum = 0;
 				char *filename;
 				FILE *fp_result;
 				FILE *fp_fail;
 				struct ns2__soap_string taskline;
-				taskline.str=(char *)malloc(1024);
-				filename=(char *)malloc(100);
+				taskline.str = (char *)malloc(1024);
+				filename = (char *)malloc(100);
 
 				//state=symtab[i].funcptr(&soap,NULL,NULL,&tasklist,&receivetasklistresponse);//向当前客户端传送任务文件
-				state=symtab[0].funcptr(&soap,cli_ip_port[i],NULL,&tasklist,&receivetasklistresponse);
-				if(state==SOAP_OK)
+				state = symtab[0].funcptr(&soap, cli_ip_port[i], NULL, &tasklist, &receivetasklistresponse);
+
+				if(state == SOAP_OK)
 				{
-					printf("task sent to client %d successful!\n",i);
+					printf("task sent to client %d successful!\n", i);
 				}
 				else
 				{
-					printf("task sent to client %d failed!\n",i);
+					printf("task sent to client %d failed!\n", i);
 					exit(1);
 				}
 
-				shared_memory=(char *)shmat(segment_id,NULL,0);//申请链接共享内存
+				shared_memory = (char *)shmat(segment_id, NULL, 0); //申请链接共享内存
+
 				if(!shared_memory)
 				{
-					printf("shmat error in child %d!\n",i);
+					printf("shmat error in child %d!\n", i);
 					exit(1);
 				}
 
-				bzero(filename,100);
-				sprintf(filename,"%s_client%d_result.txt",buf_user,i);
-				bzero(tempname,1000);
-				strcat(tempname,task_result_location);
-				strcat(tempname,filename);
-				fp_result=fopen(tempname,"wt+");//创建当前客户端成功结果文件
-				if(fp_result==NULL)
+				bzero(filename, 100);
+				sprintf(filename, "%s_client%d_result.txt", buf_user, i);
+				bzero(tempname, 1000);
+				strcat(tempname, task_result_location);
+				strcat(tempname, filename);
+				fp_result = fopen(tempname, "wt+"); //创建当前客户端成功结果文件
+
+				if(fp_result == NULL)
 				{
-					printf("creat result file error in client %d\n",i);
+					printf("creat result file error in client %d\n", i);
 					exit(1);
 				}
 
-				bzero(filename,100);
-				sprintf(filename,"%s_client%d_result_fail.txt",buf_user,i);
-				bzero(tempname,1000);
-				strcat(tempname,task_result_location);
-				strcat(tempname,filename);
-				fp_fail=fopen(tempname,"wt+");//创建当前客户端失败结果文件
-				if(fp_fail==NULL)
+				bzero(filename, 100);
+				sprintf(filename, "%s_client%d_result_fail.txt", buf_user, i);
+				bzero(tempname, 1000);
+				strcat(tempname, task_result_location);
+				strcat(tempname, filename);
+				fp_fail = fopen(tempname, "wt+"); //创建当前客户端失败结果文件
+
+				if(fp_fail == NULL)
 				{
-					printf("creat fail file erro in client %d\n",i);
+					printf("creat fail file erro in client %d\n", i);
 					fclose(fp_result);
 					exit(1);
 				}
-	
+
 				while(1)
 				{
-					bzero(taskline.str,1024);				
-					cur_line=atoi(shared_memory);
+					bzero(taskline.str, 1024);
+					cur_line = atoi(shared_memory);
+
 					//printf("%d %d\n",cur_line,tot_line);
-					if(cur_line>tot_line)break;
-					start=cur_line;
-					cur_line+=cli_core_num[i];
-					end=cur_line-1;
-					printf("client %d is doing the following line:%d to %d\n",i,start,end);
+					if(cur_line > tot_line)break;
+
+					start = cur_line;
+					cur_line += cli_core_num[i];
+					end = cur_line - 1;
+					printf("client %d is doing the following line:%d to %d\n", i, start, end);
 
 					p(semid);//改变共享内存中当前任务行数的值
-					bzero(shared_memory,strlen(shared_memory));
-					sprintf(shared_memory,"%d",cur_line);
+					bzero(shared_memory, strlen(shared_memory));
+					sprintf(shared_memory, "%d", cur_line);
 					v(semid);
 
-					if(end>tot_line)
+					if(end > tot_line)
 					{
-						sprintf(taskline.str,"%d %d",start,tot_line);
+						sprintf(taskline.str, "%d %d", start, tot_line);
 					}
 					else
 					{
-						sprintf(taskline.str,"%d %d",start,end);
+						sprintf(taskline.str, "%d %d", start, end);
 					}
 
-					taskline.size=strlen(taskline.str);
+					taskline.size = strlen(taskline.str);
 					//result=symtab[cur_client+i].funcptr(&soap,NULL,NULL,taskId,&taskline,&tasksolveresponse);//传给当前客户端需要执行的任务行
-					result=symtab[1].funcptr(&soap,cli_ip_port[i],NULL,taskId,&taskline,&tasksolveresponse);
-					printf("result:%s\n",tasksolveresponse.ret->str);
-					if(result==SOAP_OK)
+					result = symtab[1].funcptr(&soap, cli_ip_port[i], NULL, taskId, &taskline, &tasksolveresponse);
+					printf("result:%s\n", tasksolveresponse.ret->str);
+
+					if(result == SOAP_OK)
 					{
-						fputs(tasksolveresponse.ret->str,fp_result);
+						fputs(tasksolveresponse.ret->str, fp_result);
 					}
 					else
 					{
-						fputs(taskline.str,fp_fail);
-						fputs("\n",fp_fail);
+						fputs(taskline.str, fp_fail);
+						fputs("\n", fp_fail);
 						failNum++;
 					}
 
-					memset(&tasksolveresponse,0,sizeof(tasksolveresponse));
+					memset(&tasksolveresponse, 0, sizeof(tasksolveresponse));
 				}
-				if(failNum>0)
+
+				if(failNum > 0)
 				{
-					printf("%d line(s) failed to get result from client %d!\n",failNum,i);
+					printf("%d line(s) failed to get result from client %d!\n", failNum, i);
 				}
+
 				shmdt(shared_memory);
 				fclose(fp_result);
 				fclose(fp_fail);
@@ -615,28 +655,33 @@ int main()
 				//signal(SIGCHLD,SIG_IGN);
 			}
 		}
-		for(i=0;i<cur_client;i++)
+
+		for(i = 0; i < cur_client; i++)
 		{
-			waitpid(pid[i],&status[i],0);
+			waitpid(pid[i], &status[i], 0);
 		}
-		temppid=fork();
-		if(temppid<0)
+
+		temppid = fork();
+
+		if(temppid < 0)
 		{
-			printf("result back fork fail of %s\n",buf_user);
+			printf("result back fork fail of %s\n", buf_user);
 		}
-		else if(temppid==0)
+		else if(temppid == 0)
 		{
-			resultDeal(buf_user,status);
+			resultDeal(buf_user, status);
 			exit(0);
 		}
 		else
 		{
 		}
+
 		//fclose(fp_result);
 		fclose(fp_task);
 	}
-	shmctl(segment_id,IPC_RMID,NULL);//释放共享内存
-	msgctl(msgid,IPC_RMID,(struct msqid_ds*)0);
+
+	shmctl(segment_id, IPC_RMID, NULL); //释放共享内存
+	msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
 	del_sem(semid);//删除信号量
 	printf("done!\n");
 	soap_destroy(&soap);
