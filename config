@@ -1,0 +1,21 @@
+//config file
+
+//database ip address
+//like db_ip=127.0.0.1
+db_ip=localhost
+
+//database port number
+//like db_port=3306
+db_port=3306
+
+//database username no longer than 63 bit
+//like db_username=root
+db_username=root
+
+//database password no longer than 63 bit
+//like db_password=wbzdmm
+db_password=wbzdmm
+
+//make sure the info of database is sound.
+clientinfo=/home/owenwj/prog/server/Clientinfo.txt
+
