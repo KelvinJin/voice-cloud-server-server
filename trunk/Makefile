@@ -7,8 +7,7 @@ SoapLibs:=soapC.c soapClient.c stdsoap2.c
 objects:=Server.o $(SoapLibs:.c=.o)
 obj:=Listen.c $(SoapLibs)
 server:$(objects)
-	cc -o server $(objects)
-
+	cc -g -o server $(objects) -l mysqlclient -l smbclient
 Server.o:Server.h soapH.h
 Listen.o:Listen.c
 	cc -c -o Listen.o Listen.c
@@ -20,7 +19,7 @@ Server.h:$(WsdlFiles)
 	wsdl2h -o Server.h -c $(WsdlFiles)
 .PHONY:listen
 listen:
-	cc -o listen $(obj) -l mysqlclient
+	cc -g -o listen $(obj) -l mysqlclient -l smbclient
 .PHONY:clean
 clean:
 	-rm server listen $(objects) *.xml *.nsmap soapStub.h soapClientLib.c Server.h soapH.h soapC.c soapClient.c

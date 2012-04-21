@@ -2,7 +2,7 @@
 
 //database ip address
 //like db_ip=127.0.0.1
-db_ip=localhost
+db_ip=59.66.185.75
 
 //database port number
 //like db_port=3306
@@ -14,8 +14,8 @@ db_username=root
 
 //database password no longer than 63 bit
 //like db_password=wbzdmm
-db_password=wbzdmm
+db_password=anmolydia
 
 //make sure the info of database is sound.
-clientinfo=/home/owenwj/prog/server/Clientinfo.txt
+//clientinfo=/home/owenwj/prog/server/Clientinfo.txt
 
