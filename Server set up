@@ -120,7 +120,7 @@ usernamemap = /etc/samba/smbusers
 
 代码:
 
-[Sharebylinux]//windows中可见的共享名，和前文定义的share名可一样可不一样
+[sharebylinux]//windows中可见的共享名，和前文定义的share名可一样可不一样
 
 comment = Shared Folder with username and password//共享说明
 
@@ -206,7 +206,7 @@ validusers = user1 user2
 
 #sudo testparm
 
-#sudo service smbd restart
+#sudo sudo service smbd restart
 
 至此samba的配置完成了。
 

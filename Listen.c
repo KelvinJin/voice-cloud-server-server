@@ -740,9 +740,15 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (strcmp(argv[1], "network") == 0)
+	else if (strcmp(argv[1], "network") == 0)
 	{
 		init_database_network();
+	}
+	else
+	{
+	    printf("please input the correct first parameter: config or network\n");
+	    free_data();
+	    exit(1);
 	}
 
 	if (init_client() == 0)
