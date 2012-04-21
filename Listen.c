@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <mysql/mysql.h>
-#include "soapH.h"
-#include "Client.nsmap"
 #include "stddefine.h"
 struct taskrecfunc symtab[] = {
 	{"soap_call_ns__IsBusy", soap_call_ns2__IsBusy},
@@ -15,9 +7,52 @@ int msgid;
 int cli_core_num[max_client];
 int ava_client = 0;
 char *cli_ip_port[max_client];
-char *clientinfo;
+char *clientinfo = NULL;
 char *databaseinfo[4];
+char *ser;
+char *shar;
 struct ns2__soap_string sharefolderinfo[3];
+
+void cutpath(char *path)
+{
+    int len = 0;
+    int count = 0;
+    for (; count <3; len++)
+    {
+        if (path[len] == '\\')
+        {
+            count++;
+            ser[len] = '/';
+        }
+        else
+        {
+            ser[len] = path[len];
+        }
+    }
+    ser[len] = '\0';
+    strcpy(shar, path + len);
+}
+
+/*static void auth_fn(const char *server, const char *share, char *workgroup, int wgmaxlen,
+                char *username, int unmaxlen, char *password, int pwmaxlen)
+{
+
+    strncpy(workgroup, "nogroup", wgmaxlen - 1);
+    strncpy(username, sharefolderinfo[1].str, unmaxlen - 1);
+    strncpy(password, sharefolderinfo[2].str, pwmaxlen - 1);
+    strcpy(ser, server);
+    strcpy(shar, share);
+    printf("OK%s,%s\n",server,share);
+}*/
+
+void myfree(void *temp)
+{
+    if (temp != NULL)
+    {
+        free(temp);
+        temp = NULL;
+    }
+}
 int init_sharefolder()
 {
     MYSQL conn;
@@ -25,6 +60,7 @@ int init_sharefolder()
     MYSQL_RES *result;
     MYSQL_ROW row;
     char *comm;
+    int err = -1;
     int i;
     if (!mysql_real_connect(&conn, databaseinfo[0], databaseinfo[2], databaseinfo[3], database_name, 0, NULL, 0))
 	{
@@ -43,6 +79,7 @@ int init_sharefolder()
 	    {
 	        printf("mysql query wrong!%s\n", mysql_error(&conn));
             mysql_close(&conn);
+            myfree(comm);
             return -1;
 	    }
 	    result = mysql_use_result(&conn);
@@ -52,7 +89,27 @@ int init_sharefolder()
             strcat(sharefolderinfo[i].str, (char *)row[i]);
             sharefolderinfo[i].size = strlen(sharefolderinfo[i].str);
 	    }
+	    if (sharefolderinfo[0].size == 0 || sharefolderinfo[1].size == 0)
+	    {
+            printf("sharefolder info is not complete!\n");
+	        myfree(comm);
+	        mysql_close(&conn);
+	        mysql_free_result(result);
+	        return -1;
+	    }
+	    cutpath(sharefolderinfo[0].str);
+	    err = check_sharefolder_connect();
+	    if (err < 0)
+	    {
+	        printf("sharefolder connection failed!\n");
+	        myfree(comm);
+	        mysql_close(&conn);
+	        mysql_free_result(result);
+	        return -1;
+	    }
 	    //printf("sharefolder info:\npath:%s lenth:%d\nusername:%s lenth:%d\npassword:%s lenth:%d\n", sharefolderinfo[0].str, sharefolderinfo[0].size, sharefolderinfo[1].str, sharefolderinfo[1].size, sharefolderinfo[2].str, sharefolderinfo[2].size);
+	    myfree(comm);
+	    mysql_free_result(result);
 	    mysql_close(&conn);
 		return 0;
 	}
@@ -65,13 +122,23 @@ int send_sharefolder(char *cli_ip_port)
 	soap.send_timeout = MAX_TIME;
 	soap.recv_timeout = MAX_TIME;
 	struct ns2__BuildShareFolderResponse BuildShareFolderResponse;
-    if(symtab[1].funcptr(&soap, cli_ip_port, NULL, &sharefolderinfo[0], &sharefolderinfo[1], &sharefolderinfo[2], &BuildShareFolderResponse) == SOAP_OK)
+	int state = -1;
+	state = symtab[1].funcptr(&soap, cli_ip_port, NULL, &sharefolderinfo[0], &sharefolderinfo[1], &sharefolderinfo[2], &BuildShareFolderResponse);
+    if(state == SOAP_OK && BuildShareFolderResponse.ret->str[0] == '0')
     {
         printf("send share folder info to %s success!\n", cli_ip_port);
     }
+    else if (state == SOAP_OK)
+    {
+        printf("send share folder info wrong!\nerror:%s\n", BuildShareFolderResponse.ret->str);
+        soap_destroy(&soap);
+        soap_end(&soap);
+        soap_done(&soap);
+        return -1;
+    }
     else
     {
-        printf("send share folder info wrong!\n");
+        printf("send share folder timeout!\n");
         soap_destroy(&soap);
         soap_end(&soap);
         soap_done(&soap);
@@ -100,8 +167,30 @@ void init_data()
     for (i = 0; i < 3; i++)
     {
         sharefolderinfo[i].str = (char *)malloc(100);
+        //bzero(&sharefolderinfo[i], sizeof(struct ns2__soap_string));
         bzero(sharefolderinfo[i].str, 100);
     }
+    ser = (char *)malloc(BUFFER);
+    shar = (char *)malloc(BUFFER);
+}
+void free_data()
+{
+    int i;
+    for (i =0 ; i < max_client; i++)
+    {
+        myfree(cli_ip_port[i]);
+    }
+    myfree(clientinfo);
+    for (i = 0; i < 4; i++)
+    {
+        myfree(databaseinfo[i]);
+    }
+    for (i = 0; i < 3; i++)
+    {
+        myfree(sharefolderinfo[i].str);
+    }
+    myfree(ser);
+    myfree(shar);
 }
 int countClientNumber(char *clientinfo)
 {
@@ -155,42 +244,55 @@ int countClientNumber(char *clientinfo)
 		cli_core_num[i] = atoi(buf_client);
 		temp++;
 	}
-
+    myfree(buf_client);
 	fclose(fp_client);
 	return i;
 }
 char *com_general(char *status, char *file)
 {
-	char *command;
-	command = (char *)malloc(MAX_BUFFER);
-	bzero(command, MAX_BUFFER);
+	char *command = NULL;
+	command = (char *)malloc(BUFFER);
+	bzero(command, BUFFER);
 	strcat(command, "cp ");
+	strcat(command, server_webfiles_root);
 	strcat(command, status);
 	strcat(command, file);
 	strcat(command, " ");
 	strcat(command, server_webfiles_root);
-	printf("%s\n", command);
+	printf("doing the command:%s\n", command);
 	return command;
 }
 void web_control(int com_id)
 {
-
+    char *com = NULL;
 
 	switch (com_id)
 	{
 	case 1:
-		system(com_general(server_webfiles_open, server_webfiles_client));
-		system(com_general(server_webfiles_open, server_webfiles_database));
+        com = com_general(server_webfiles_open, server_webfiles_client);
+		system(com);
+		myfree(com);
+		com = com_general(server_webfiles_open, server_webfiles_database);
+		system(com);
+		myfree(com);
 		break;
 	case 2:
-		system(com_general(server_webfiles_close, server_webfiles_client));
-		system(com_general(server_webfiles_close, server_webfiles_database));
+        com = com_general(server_webfiles_close, server_webfiles_client);
+		system(com);
+		myfree(com);
+		com = com_general(server_webfiles_close, server_webfiles_database);
+		system(com);
+		myfree(com);
 		break;
 	case 3:
-		system(com_general(server_webfiles_open, server_webfiles_index));
+        com = com_general(server_webfiles_open, server_webfiles_index);
+		system(com);
+		myfree(com);
 		break;
 	case 4:
-		system(com_general(server_webfiles_close, server_webfiles_index));
+        com = com_general(server_webfiles_close, server_webfiles_index);
+		system(com);
+		myfree(com);
 		break;
 	case 0:
 		break;
@@ -202,13 +304,13 @@ int record_avaclient()
     FILE *fp_client;
     int i;
     char *a;
-    a = (char *)malloc(BUFFER);
-    bzero(a, BUFFER);
     if ((fp_client = fopen(server_webfiles_avaclientinfo, "w+")) == NULL)
 	{
 		printf("config file doesn't exist!\n");
 		return -1;
 	}
+    a = (char *)malloc(BUFFER);
+    bzero(a, BUFFER);
     for (i = 0; i < max_client; i++)
     {
         if (strlen(cli_ip_port[i]) != 0)
@@ -222,8 +324,42 @@ int record_avaclient()
     }
     fputs("\n", fp_client);
     fclose(fp_client);
+    myfree(a);
     return 0;
 }
+
+int check_sharefolder_connect()
+{
+    FILE *fp;
+    printf("Checking connection with sharefolder...");
+    if ((fp = fopen("smbcheck.txt", "a+")) == NULL)
+    {
+        printf("check file create error!\n");
+        return -1;
+    }
+    fclose(fp);
+    char *com = (char *)malloc(BUFFER);
+    bzero(com, BUFFER);
+    sprintf(com, "smbclient -c \"put smbcheck.txt smbsuccess.txt\" %s%s -U %s %s", ser, shar, sharefolderinfo[1].str, sharefolderinfo[2].str);
+    system(com);
+    bzero(com, BUFFER);
+    sprintf(com, "smbclient -c \"get smbsuccess.txt smbsuccess.txt\" %s%s -U %s %s", ser, shar, sharefolderinfo[1].str, sharefolderinfo[2].str);
+    system(com);
+    if ((fp = fopen("smbsuccess.txt", "r")) == NULL)
+    {
+        printf("connection fail!\n");
+        myfree(com);
+        remove("smbcheck.txt");
+        return -1;
+    }
+    fclose(fp);
+    remove("smbcheck.txt");
+    remove("smbsuccess.txt");
+    printf("OK\n");
+    myfree(com);
+    return 0;
+}
+
 int check_database_connect()
 {
     MYSQL conn;
@@ -244,15 +380,17 @@ int check_database_connect()
 	else
 	{
 	    mysql_close(&conn);
-		return 0;
+        mysql_library_end();
+		//return check_sharefolder_connect();
+        return 0;
 	}
 }
 //init database by config
 int init_database_config(char *filename)
 {
 
-	FILE *fp_config;
-	char *temp;
+	FILE *fp_config = NULL;
+	char *temp = NULL;
 	int i;
 
 	if ((fp_config = fopen(filename, "rt+")) == NULL)
@@ -314,17 +452,21 @@ int init_database_config(char *filename)
 			}
 		}
 	}
-    for (i == 0; i < 4; i++)
+    for (i = 0; i < 4; i++)
     {
-        if (databaseinfo[i] != NULL)
+        if (strlen(databaseinfo[i]) != 0)
         {
         }
         else
         {
             printf("database info isn't complete! please check the config!\n");
+            myfree(temp);
+            fclose(fp_config);
             return -1;
         }
     }
+    myfree(temp);
+    fclose(fp_config);
     return 0;
 }
 //init database by network
@@ -410,7 +552,6 @@ int init_client_network()
     int flags;
     char buf_temp[BUFFER];
     char *tempname;
-    FILE *fp_client;
     key = ftok(server_webfiles_client_root, 'a');
     if((msgid = msgget(key, 0777 | IPC_CREAT)) == -1)
 	{
@@ -456,12 +597,17 @@ int init_client_network()
                 break;
             }
         }
+		if (strcmp(buf_temp, "QUIT") == 0)
+		{
+			exit_me();
+		}
         tempname = (char *)malloc(1000);
         bzero(tempname, 1000);
         strcat(tempname, server_webfiles_client_root);
         strcat(tempname, buf_temp);
         strcat(tempname, ".txt");
         i = countClientNumber(tempname);
+        myfree(tempname);
         if (i > -1)
         {
             if (check_isBusy(cli_ip_port[i]) == 0)
@@ -514,6 +660,11 @@ int check_client()
     }
     if (ava_client == 0)
     {
+        if (record_avaclient() != 0)
+        {
+            printf("record avaclient fail!\n");
+            exit(1);
+        }
         return -1;
     }
     else
@@ -527,16 +678,21 @@ int check_client()
         return 0;
     }
 }
-int do_while_server_exit(int pid)
+void exit_me()
+{
+	printf("exiting...\n");
+	web_control(2);
+	web_control(4);
+	msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
+	free_data();
+	exit(0);
+}
+void do_while_server_exit(int pid)
 {
     if (waitpid(pid, NULL, WNOHANG) > 0)
     {
-        web_control(2);
-        web_control(4);
-        msgctl(msgid, IPC_RMID, (struct msqid_ds*)0);
-        exit(0);
+		exit_me();
     }
-    return 0;
 }
 int main(int argc, char *argv[])
 {
@@ -549,7 +705,6 @@ int main(int argc, char *argv[])
 	printf("0 for do nothing\n");
 	scanf("%d", &com_id);
 	web_control(com_id);
-	printf("%s\n", argv[1]);
     init_data();
 	if (strcmp(argv[1], "config") == 0)
 	{
@@ -566,18 +721,21 @@ int main(int argc, char *argv[])
                 else
                 {
                     printf("init sharefolder failed!\n");
+                    free_data();
                     exit(1);
                 }
 			}
 			else
             {
                 printf("init database failed!\n");
+                free_data();
                 exit(1);
             }
 		}
 		else
 		{
 			printf("read database info failed!\n");
+			free_data();
 			exit(1);
 		}
 	}
@@ -601,12 +759,14 @@ int main(int argc, char *argv[])
     if (record_avaclient() != 0)
     {
         printf("record avaclient fail!\n");
+        free_data();
         exit(1);
     }
     pid = fork();
     if (pid < 0)
     {
         printf("fork fail!\n");
+        free_data();
         exit(1);
     }
     else if (pid == 0)
@@ -634,6 +794,18 @@ int main(int argc, char *argv[])
         }
         else
         {
+            printf("OK\nchecking sharefolder...");
+        }
+        printf("checking sharefolder connect...");
+        if (check_sharefolder_connect() != 0)
+        {
+            printf("connect sharefolder fail!\nclose index.html!\ntry to wait for connection from network!\n");
+            web_control(4);
+            init_database_network();
+            web_control(3);
+        }
+        else
+        {
             printf("OK\nchecking client...");
         }
         if (check_client() != 0)
@@ -645,6 +817,7 @@ int main(int argc, char *argv[])
             if (record_avaclient() != 0)
             {
                 printf("record avaclient fail!\n");
+                free_data();
                 exit(1);
             }
             web_control(3);
